@@ -123,16 +123,58 @@ function goalOrientedRobot({ place, parcels }, route) {
   return { direction: route[0], memory: route.slice(1) };
 }
 
+function improvedRobot({ place, parcels }, route) {
+  function findClosestParcel(place, parcels) {
+    let minRoute = null;
+    let closestParcel = null;
+
+    for (let parcel of parcels) {
+      let routeToParcel =
+        parcel.place != place
+          ? findRoute(roadGraph, place, parcel.place)
+          : findRoute(roadGraph, place, parcel.address);
+
+      if (!minRoute || routeToParcel.length < minRoute.length) {
+        minRoute = routeToParcel;
+        closestParcel = parcel;
+      }
+    }
+
+    return { parcel: closestParcel, route: minRoute };
+  }
+
+  if (route.length == 0) {
+    let { parcel, route: newRoute } = findClosestParcel(place, parcels);
+
+    if (parcel.place != place) {
+      route = findRoute(roadGraph, place, parcel.place);
+    } else {
+      route = findRoute(roadGraph, place, parcel.address);
+    }
+  }
+
+  return { direction: route[0], memory: route.slice(1) };
+}
+
 function randomRobot(state) {
   return { direction: randomPick(roadGraph[state.place]) };
 }
 
-function compareRobots(robot1, robot2, parcels) {
+function compareRobots(robot1, robot2, parcels, simulations) {
   const village = VillageState.random(parcels);
-  const robot1Turns = runRobot(village, robot1, mailRoute);
-  const robot2Turns = runRobot(village, robot2);
-  console.log(`Robot 1 took ${robot1Turns} turns.`);
-  console.log(`Robot 2 took ${robot2Turns} turns.`);
+  let robot1Total = 0;
+  let robot2Total = 0;
+  for (let i = 0; i < simulations; i++) {
+    const robot1Turns = runRobot(village, robot1, []);
+    const robot2Turns = runRobot(village, robot2, []);
+    robot1Total += robot1Turns;
+    robot2Total += robot2Turns;
+  }
+  const robot1Average = robot1Total / simulations;
+  const robot2Average = robot2Total / simulations;
+  console.log(
+    `Robot 1 took on average ${robot1Average} turns, while Robot 2 took ${robot2Average}`,
+  );
 }
 
-compareRobots(goalOrientedRobot, randomRobot, 100);
+compareRobots(goalOrientedRobot, improvedRobot, 100, 50);
